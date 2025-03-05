@@ -10,7 +10,7 @@ package model;
  */
 public class HouseholdMember { //comment gi day
     private int memberId; //them comment gi day
-    private int householdId;
+    private int householdId; //another comment
     private int userId;
     private String relationship;
     private String typeStay;
