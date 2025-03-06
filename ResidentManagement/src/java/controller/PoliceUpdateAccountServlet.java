@@ -5,7 +5,6 @@
 package controller;
 
 import dal.UserDAO;
-import jakarta.servlet.RequestDispatcher;
 import java.io.IOException;
 import java.io.PrintWriter;
 import jakarta.servlet.ServletException;
@@ -14,14 +13,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
-import java.util.HashSet;
 import model.User;
 
 /**
  *
- * @author huyng
+ * @author AN515-57
  */
-public class NavigationServlet extends HttpServlet {
+public class PoliceUpdateAccountServlet extends HttpServlet {
 
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
@@ -40,10 +38,10 @@ public class NavigationServlet extends HttpServlet {
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
-            out.println("<title>Servlet NavigationServlet</title>");
+            out.println("<title>Servlet policeUpdateAccountServlet</title>");
             out.println("</head>");
             out.println("<body>");
-            out.println("<h1>Servlet NavigationServlet at " + request.getContextPath() + "</h1>");
+            out.println("<h1>Servlet policeUpdateAccountServlet at " + request.getContextPath() + "</h1>");
             out.println("</body>");
             out.println("</html>");
         }
@@ -61,28 +59,39 @@ public class NavigationServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+//        processRequest(request, response);
         HttpSession session = request.getSession();
-        String action = request.getParameter("action");
-        User user = (User) session.getAttribute("account");
         UserDAO udb = new UserDAO();
+        User user = (User) session.getAttribute("account");
+        
         if (user == null) {
             response.sendRedirect("login");
             return;
         }
-        if (action.equalsIgnoreCase("citizenMain")) {
-            request.getRequestDispatcher("view/citizenMain.jsp").forward(request, response);
-        } else if (action.equalsIgnoreCase("submitRequest")) {
-            request.getRequestDispatcher("view/submitRequest.jsp").forward(request, response);
-        } else if (action.equalsIgnoreCase("citizenAccount")) {
-            request.getRequestDispatcher("view/citizenAccount.jsp").forward(request, response);
-        } else if (action.equalsIgnoreCase("viewRequest")) {
-            request.getRequestDispatcher("view/viewRequest.jsp").forward(request, response);
-        } else if (action.equalsIgnoreCase("accountList")) {
+        
+        
+        String action = request.getParameter("action");
+        if (action == null) {
+            //do nothing
+        } else if (action.equals("update")) {
+            int userid = Integer.parseInt(request.getParameter("userid"));
+            User chosenUser = udb.getUserById(userid);
+            request.setAttribute("user", chosenUser);
+            request.getRequestDispatcher("view/updateAccount.jsp").forward(request, response);
+            return;
+        }
+        
+        
+        String pagenumRaw = request.getParameter("pagenum");
+        if (pagenumRaw == null) {
+            //do nothing
+        } else {
+            int pagenum = Integer.parseInt(pagenumRaw);
             ArrayList<User> users = udb.getAll();
-            ArrayList<User> list = udb.getUserByStartAndEnd(users, 0, 6);
+            ArrayList<User> list = udb.getUserByStartAndEnd(users, (pagenum - 1) * 6, pagenum * 6 - 1);
             request.setAttribute("list", list);
-            int page = (users.size() % 6 == 0)? users.size() / 6 : users.size() / 6 + 1; //Get number of page
-            request.setAttribute("page", page);            
+            int page = (users.size() % 6 == 0) ? users.size() / 6 : users.size() / 6 + 1; //Get number of page
+            request.setAttribute("page", page);
             request.getRequestDispatcher("view/accountList.jsp").forward(request, response);
         }
     }
@@ -98,7 +107,18 @@ public class NavigationServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+//        processRequest(request, response);
+        UserDAO userdb = new UserDAO();
+        String userId = request.getParameter("userId");
+        String fullName = request.getParameter("fullName");
+        String address = request.getParameter("addresss");
+        String phoneNum = request.getParameter("phoneNum");
+        String roleId = request.getParameter("roleId");
+        
+        userdb.updateAccountByPolice(Integer.parseInt(userId), fullName, roleId, phoneNum);
+        
+        request.setAttribute("message", "Đổi thành công!");
+        request.getRequestDispatcher("view/updateAccount.jsp").forward(request, response);
     }
 
     /**

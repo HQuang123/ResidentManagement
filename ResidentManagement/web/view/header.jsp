@@ -5,6 +5,8 @@
 --%>
 
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@page import="model.User" %>
 <!DOCTYPE html>
 <html>
     <head>
@@ -25,6 +27,11 @@
                         <li class="nav-item align-items-center">
                             <a class="nav-link fs-5" href="nav?action=citizenMain">Trang chủ</a>
                         </li>
+                        <c:if test = "${account.role eq 'Police'}">
+                            <li class="nav-item align-items-center">
+                                <a class="nav-link fs-5" href="nav?action=accountList">Quản lí dân cư</a>
+                            </li>
+                        </c:if>
                         <li class="nav-item align-items-center">
                             <a class="nav-link fs-5" href="#">Thông báo</a>
                         </li>

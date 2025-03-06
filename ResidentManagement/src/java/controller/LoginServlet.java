@@ -83,6 +83,7 @@ public class LoginServlet extends HttpServlet {
             return;
         }
         session.setAttribute("account",user);
+        user.getRole().equals("Police");
         request.getRequestDispatcher("view/citizenMain.jsp").forward(request, response);
     }
 
