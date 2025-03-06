@@ -4,8 +4,12 @@
  */
 package controller;
 
+
 import dal.UserDAO;
 import jakarta.servlet.RequestDispatcher;
+
+import dal.RegistrationDAO;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import jakarta.servlet.ServletException;
@@ -14,7 +18,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
-import java.util.HashSet;
+
+import java.util.List;
+import model.Registration;
 import model.User;
 
 /**
@@ -65,7 +71,9 @@ public class NavigationServlet extends HttpServlet {
         String action = request.getParameter("action");
         User user = (User) session.getAttribute("account");
         UserDAO udb = new UserDAO();
-        if (user == null) {
+        RegistrationDAO rdb = new RegistrationDAO();
+        if(user == null){
+
             response.sendRedirect("login");
             return;
         }
@@ -75,7 +83,11 @@ public class NavigationServlet extends HttpServlet {
             request.getRequestDispatcher("view/submitRequest.jsp").forward(request, response);
         } else if (action.equalsIgnoreCase("citizenAccount")) {
             request.getRequestDispatcher("view/citizenAccount.jsp").forward(request, response);
-        } else if (action.equalsIgnoreCase("viewRequest")) {
+
+        }else if(action.equalsIgnoreCase("viewRequest")){
+            System.out.println(user.getUserId());
+            List<Registration> list = rdb.getRegistrationByUserId(user);
+            request.setAttribute("registrations", list);
             request.getRequestDispatcher("view/viewRequest.jsp").forward(request, response);
         } else if (action.equalsIgnoreCase("accountList")) {
             ArrayList<User> users = udb.getAll();
