@@ -237,11 +237,13 @@
                     </tr>
                 </table>
 
+                <% session.setAttribute("approveBy", user.getUserId()); %>
                 <table>
                     <tr>
                         <td><a class="backTo" href="RequestList?backTo=listApprove&requestType=<%= rdb.getRequestTypeByRegistrationId(registration.getRegistrationId())%>">Quay lại</a></td>
-                        <td><a class="approve" href="RequestProcess?action=approve&registrationId=<%= registration.getRegistrationId()%>">Đồng ý  </a></td>
-                        <td><a class="reject" href="RequestProcess?action=deny&registrationId=<%= registration.getRegistrationId()%>">  Từ chối</a></td>
+                        <td><a class="approve" href="RequestProcess?action=approve&registrationId=<%= registration.getRegistrationId()%>&requestType=<%= rdb.getRequestTypeByRegistrationId(registration.getRegistrationId())%>">Đồng ý  </a></td>
+                        <td><a class="reject" href="RequestProcess?action=deny&registrationId=<%= registration.getRegistrationId()%>&requestType=<%= rdb.getRequestTypeByRegistrationId(registration.getRegistrationId())%>">  Từ chối</a></td>
+
                     </tr>
                 </table>
             </form>

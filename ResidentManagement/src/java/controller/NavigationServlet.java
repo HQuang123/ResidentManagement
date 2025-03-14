@@ -65,6 +65,9 @@ public class NavigationServlet extends HttpServlet {
         User user = (User) session.getAttribute("account");
         UserDAO udb = new UserDAO();
         RegistrationDAO rdb = new RegistrationDAO();
+        if(action.equalsIgnoreCase("passwordReset")){
+            request.getRequestDispatcher("view/passwordReset.jsp").forward(request, response);
+        }
         if(user == null){
             response.sendRedirect("login");
             return;
@@ -89,6 +92,8 @@ public class NavigationServlet extends HttpServlet {
             request.getRequestDispatcher("view/accountList.jsp").forward(request, response);
         } else if(action.equalsIgnoreCase("approveRequest")){
             request.getRequestDispatcher("view/approveRequest.jsp").forward(request, response);
+        } else if(action.equalsIgnoreCase("passwordReset")){
+             request.getRequestDispatcher("view/passwordReset.jsp").forward(request, response);
         }
     } 
 

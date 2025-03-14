@@ -65,41 +65,111 @@ public class RequestProcessServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-//        processRequest(request, response);
-        String regisId = request.getParameter("registrationId");
+        int registrationId = Integer.parseInt(request.getParameter("registrationId"));
         RegistrationDAO rdb = new RegistrationDAO();
         UserDAO udb = new UserDAO();
-        HouseholdDAO hhdb = new HouseholdDAO();
-        HouseholdMemberDAO hhmdb = new HouseholdMemberDAO();
-        Registration regis = rdb.getRegistrationById(Integer.parseInt(regisId));
+        HouseholdDAO hdb = new HouseholdDAO();
+        User user = (User) session.getAttribute("account");
+        HouseholdMemberDAO hmdb = new HouseholdMemberDAO();
+        Registration registration = rdb.getRegistrationById(registrationId);
         LogDAO logdb = new LogDAO();
-        int uid = regis.getUserId();
         LocalDate today = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String formattedDate = today.format(formatter);
         HttpSession session = request.getSession();
 
         
-        //separate account
-        if (regis.getRequestType().equals("separateAddress")) {
-            //get permanent householdmem
-            HouseholdMember householdMember = hhmdb.getPermanentHouseholdMemberbyUserId(uid);
+        if (user == null) {
+            response.sendRedirect("login");
+        } else {
+            String action = request.getParameter("action");
+            int registrationId = Integer.parseInt(request.getParameter("registrationId"));
+            Registration registration = rdb.getRegistrationById(registrationId);
+            String requestType = request.getParameter("requestType");
+            int userId = rdb.getUserIdByRegistrationId(registrationId);
+            if (action.equalsIgnoreCase("deny")) {
+                rdb.changeStatusToRejectedByRegistrationId(registrationId);
+                Log log = new Log(userId, "Từ chối đơn chuyển hộ khẩu", formattedDate);
+                logdb.insertNewLog(log);
+                request.setAttribute("requestType", rdb.getRequestTypeByRegistrationId(registrationId));
+                RequestDispatcher rs = request.getRequestDispatcher("RequestList");
+                rs.forward(request, response);
+            } else if (action.equalsIgnoreCase("approve") && requestType.equalsIgnoreCase("registerAddress")) {
+                int headOfHouseholdId = rdb.getHeadOfHouseholdIdByRegistrationId(registrationId);
+                int newAddressId = rdb.getNewAddressIdByRegistrationId(registrationId);                
+                int householdId = hdb.getHouseholdIDByAddressIdAndHeadOfHouseholdId(newAddressId, headOfHouseholdId); // lấy id của hộ khẩu request
+                if (headOfHouseholdId == -1 && registration.getRegistrationType().equalsIgnoreCase("permanent")) {
+                    rdb.changeStatusToApprovedByRegistrationId(registrationId, user.getUserId());
+                    //Nếu không có chủ hộ khẩu mà user đăng ký dưới đơn thường trú -> user trở thành chủ hộ khẩu ->     
+                    Household household = new Household(userId, newAddressId, formattedDate);
+                    hdb.insertNewHousehold(household); //cho vào hộ khảu mới
+                    HouseholdMember householdMember = new HouseholdMember(householdId, userId, "Chủ hộ",
+                            rdb.getRegistrationTypeByRegistrationId(registrationId));
+                    hmdb.insertNewHouseholdMember(householdMember);
+                    logdb.insertNewLog(new Log(user.getUserId(), "Duyệt đăng ký hộ khẩu mới cho đơn số " + registration.getRegistrationId(), formattedDate));
+                } else if (headOfHouseholdId == -1 && !registration.getRegistrationType().equalsIgnoreCase("permanent")) {
+                    //trong truong hop ko co chu ho khau va don đăng ký không phải thường trú, vẫn duyệt, nhưng không lưu vào household, chỉ lưu vào hmdb
+//                    hdb.newHousehold(-1, newAddressId, formattedDate); //Thêm vào bảng household, tuy nhiên để null chủ hộ
+//                    hmdb.newHouseholdMember(householdId, registration.getUserId(), "Không có chủ hộ", registration.getRegistrationType()); //
+//                    logdb.insertNewLog(new Log(user.getUserId(), "Duyệt đăng ký hộ khẩu mới cho đơn số " + registration.getRegistrationId(), formattedDate));
+                } else {
+                    //trong trường hợp có chủ hộ khẩu và đơn dăng ký đủ điều kiện           
+                    rdb.changeStatusToApprovedByRegistrationId(registrationId, user.getUserId());
+                    HouseholdMember householdMember = new HouseholdMember(householdId, userId, rdb.getRelationshipByRegistrationId(registrationId),
+                            rdb.getRegistrationTypeByRegistrationId(registrationId));
+                    hmdb.insertNewHouseholdMember(householdMember);
+                    logdb.insertNewLog(new Log(user.getUserId(), "Duyệt đăng ký hộ khẩu mới cho đơn số " + registration.getRegistrationId(), formattedDate));
+                }
+                //quay lại về
+                request.setAttribute("requestType", rdb.getRequestTypeByRegistrationId(registrationId));
+                RequestDispatcher rs = request.getRequestDispatcher("RequestList");
+                rs.forward(request, response);
+
+            } else if (action.equalsIgnoreCase("accept") && requestType.equalsIgnoreCase("moveAddress")) {
+                rdb.changeStatusToApprovedByRegistrationId(registrationId, user.getUserId());
+                int userId = rdb.getUserIdByRegistrationId(registrationId);
+                int headOfHouseholdId = rdb.getHeadOfHouseholdIdByRegistrationId(registrationId);
+                int newAddressId = rdb.getNewAddressIdByRegistrationId(registrationId);
+                hmdb.deleteHouseholdMemberByUserId(userId);
+                if (headOfHouseholdId == -1) { //không tìm thấy chủ hộ và thì phải có trạng thái đăng ký thường trú 
+                    Household household = new Household(userId, newAddressId, formattedDate); //tạo chủ hộ mới
+                    hdb.insertNewHousehold(household);
+
+                    HouseholdMember householdMember = new HouseholdMember(hdb.getHouseholdIDByAddressIdAndHeadOfHouseholdId(newAddressId, userId),
+                            userId, "Chủ hộ", rdb.getRegistrationTypeByRegistrationId(registrationId));
+                    hmdb.insertNewHouseholdMember(householdMember);
+                } else {
+                    HouseholdMember householdMember = new HouseholdMember(hdb.getHouseholdIDByAddressIdAndHeadOfHouseholdId(newAddressId, headOfHouseholdId),
+                            userId, rdb.getRelationshipByRegistrationId(registrationId),
+                            rdb.getRegistrationTypeByRegistrationId(registrationId));
+                    hmdb.insertNewHouseholdMember(householdMember);
+                }
+
+                Log log = new Log(userId, "Duyệt đơn chuyển hộ khẩu mới cho đơn số " + registration.getRegistrationId(), formattedDate);
+                logdb.insertNewLog(log);
+                request.setAttribute("requestType", rdb.getRequestTypeByRegistrationId(registrationId));
+                RequestDispatcher rs = request.getRequestDispatcher("RequestList");
+                rs.forward(request, response);
+            } else if (action.equalsIgnoreCase("accept") && requestType.equalsIgnoreCase("separateAddress")) {
+                //get permanent householdmem
+            HouseholdMember householdMember = hhmdb.getPermanentHouseholdMemberbyUserId(userId);
             //old household info
-            Household oldHousehold = hhdb.getHouseholdById(householdMember.getHouseholdId());
+            Household oldHousehold = hdb.getHouseholdById(householdMember.getHouseholdId());
 
-            hhmdb.deletePermanentHouseholdMemberByID(uid);
-            hhdb.insertHousehold(uid, oldHousehold.getAddressId(), formattedDate);
+            hhmdb.deletePermanentHouseholdMemberByID(userId);
+            hdb.insertHousehold(userId, oldHousehold.getAddressId(), formattedDate);
 
-            Household newHousehold = hhdb.getHouseholdByHeadId(uid);
-            hhmdb.insertHouseholdMember(newHousehold.getHouseholdId(), uid, "Chủ hộ", "permanent");            
-            rdb.updateRegistrationStatus(Integer.parseInt(regisId), "Approved", ((User) session.getAttribute("account")).getUserId());
-            Log log = new Log(((User) session.getAttribute("account")).getUserId(), "Duyệt đơn tách hộ khẩu", formattedDate);
+            Household newHousehold = hdb.getHouseholdByHeadId(userId);
+            hhmdb.insertHouseholdMember(newHousehold.getHouseholdId(), userId, "Chủ hộ", "permanent");            
+            rdb.updateRegistrationStatus(registrationId, "Approved", ((User) session.getAttribute("account")).getUserId());
+            Log log = new Log(user.getUserId(), "Duyệt đơn tách hộ khẩu", formattedDate);
             logdb.insertNewLog(log);
-            request.setAttribute("registration", regis);
+            request.setAttribute("registration", registration);
             request.setAttribute("message", "Duyệt đơn thành công");            
             RequestDispatcher rs = request.getRequestDispatcher("view/viewListDetail.jsp");
             rs.forward(request, response);
             return;
+            }
         }
     }
 
